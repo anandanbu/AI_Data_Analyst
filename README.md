@@ -109,10 +109,6 @@ Contributions are welcome! Please follow these steps:
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
 ## 📧 Contact
 
 For questions or support, please open an issue on the [GitHub repository](https://github.com/anandanbu/AI_Data_Analyst).

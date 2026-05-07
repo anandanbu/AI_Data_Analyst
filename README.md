@@ -20,7 +20,8 @@ AI Data Analyst is an intelligent tool that leverages artificial intelligence an
 
 ## 🌐 Live Website
 
-🔗 Visit my portfolio here: https://aidataanalyst-pibek8udhacksdpakgi2nu.streamlit.app/
+🔗 Visit my project here:
+https://aidataanalyst-pibek8udhacksdpakgi2nu.streamlit.app/
 
 ## ✨ Features
 

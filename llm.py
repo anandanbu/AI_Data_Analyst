@@ -101,10 +101,20 @@ Be specific, quantitative where possible, and always recommend next steps.
 Format your response with clear sections using markdown headers.
 Do NOT hallucinate data — only reference what is explicitly provided in the summary."""
 
-_CHAT_SYSTEM = """You are an AI data analyst assistant. 
-You have been given a summary of a dataset and must answer the user's question accurately.
-If you need to suggest pandas code to answer the question, wrap it in ```python``` code blocks.
-Be concise but thorough. If the question cannot be answered from the summary, say so clearly."""
+_CHAT_SYSTEM = """You are a friendly and conversational AI data analyst assistant.
+A non-technical user is asking you questions about their dataset. Answer like a knowledgeable
+friend explaining data insights - NOT like a developer or programmer.
+
+STRICT RULES you must always follow:
+- NEVER write or show any code, Python, pandas, or any programming syntax whatsoever
+- NEVER mention technical terms like pandas, DataFrame, .groupby(), .value_counts(), etc.
+- ALWAYS give the actual answer directly using numbers from the dataset summary provided
+- If the exact figure is available, state it plainly e.g. "There are 1,234 missing values in CustomerID"
+- If the data does not contain enough detail, give your best plain-English interpretation
+- Speak in warm, clear, conversational sentences a business user would understand
+- Use short bullet points when listing multiple findings, keep language simple
+- Keep your answer concise: 3 to 6 sentences is ideal unless a detailed breakdown is needed
+- Think of yourself as a business analyst presenting findings to a manager, never as a coder"""
 
 _CODE_SYSTEM = """You are an expert Python/pandas developer.
 Generate ONLY executable Python code that answers the user's question about the DataFrame `df`.
@@ -188,9 +198,9 @@ Sample Data (first few rows):
 
 User Question: {question}
 
-Answer the question using the summary above.
-If a pandas operation would help, show the code in a ```python``` block."""
-    return _complete(_CHAT_SYSTEM, prompt, use_cache=False, max_tokens=800)
+Answer the user's question in plain, conversational English using only the data summary above.
+Do NOT include any code. Do NOT use technical jargon. Give a direct, friendly answer."""
+    return _complete(_CHAT_SYSTEM, prompt, use_cache=False, max_tokens=600)
 
 
 def generate_pandas_code(question: str, columns: list[str], dtypes: dict) -> str:

@@ -157,18 +157,21 @@ class DataAnalystAgent:
         """
         Process a user question about the dataset.
 
-        Decision tree:
-          1. If question looks computational (count, sum, filter, etc.)
-             → generate pandas code → execute safely → return result
-          2. Otherwise → ask LLM with summary context → return answer
+        All questions are now routed through the conversational LLM path.
+        The LLM answers in plain English using the dataset summary — no code
+        is ever shown to the user. This makes the chat feel like a real chatbot.
+
+        Internal code execution still runs silently when possible to get exact
+        numbers, and those numbers are passed to the LLM for a natural answer.
         """
         if self.df is None:
             return {"type": "error", "content": "No dataset loaded."}
 
         self.chat_history.append({"role": "user", "content": question})
 
+        # Always use conversational path — no code shown to user ever
         if self._is_computational_question(question):
-            response = self._handle_computational_question(question)
+            response = self._handle_computational_as_conversational(question)
         else:
             response = self._handle_conversational_question(question)
 
@@ -187,47 +190,41 @@ class DataAnalystAgent:
         q_lower = q.lower()
         return any(kw in q_lower for kw in computational_keywords)
 
-    def _handle_computational_question(self, question: str) -> dict[str, Any]:
+    def _handle_computational_as_conversational(self, question: str) -> dict[str, Any]:
         """
-        Generate + execute pandas code to answer a computational question.
-        Falls back to LLM answer if code execution fails.
+        For questions that need computation (counts, averages, filters etc.):
+          1. Silently run pandas code to get the exact number/result
+          2. Pass that result to the LLM so it can answer in plain English
+          3. Return only the natural-language answer — no code ever shown to user
         """
         df = self.df
         dtypes = {col: str(df[col].dtype) for col in df.columns}
 
-        # Ask LLM to write the pandas code
+        # Step 1: silently generate + execute pandas code
         code = llm.generate_pandas_code(question, df.columns.tolist(), dtypes)
-
-        # Strip markdown fences if present
         code = re.sub(r"```python\s*", "", code)
         code = re.sub(r"```\s*", "", code)
         code = code.strip()
 
-        result, error = execute_code_safely(code, df)
+        computed_result, error = execute_code_safely(code, df)
 
-        if error:
-            # Fallback: answer via LLM without code execution
-            fallback = llm.answer_question(question, self.summary, self._sample_rows)
-            return {
-                "type": "llm_answer",
-                "content": fallback,
-                "code": code,
-                "code_error": error,
-            }
-
-        # Format the result nicely
-        if isinstance(result, pd.DataFrame):
-            content = f"Query result ({len(result)} rows):\n\n{result.head(20).to_markdown(index=False)}"
-        elif isinstance(result, pd.Series):
-            content = f"Result:\n\n{result.head(20).to_markdown()}"
+        # Step 2: build an enriched summary that includes the computed answer
+        enriched_summary = dict(self.summary)
+        if not error and computed_result is not None:
+            # Serialise the computed result into a readable string
+            if isinstance(computed_result, pd.DataFrame):
+                result_str = computed_result.head(10).to_string(index=False)
+            elif isinstance(computed_result, pd.Series):
+                result_str = computed_result.head(10).to_string()
+            else:
+                result_str = str(computed_result)
+            enriched_summary["computed_answer"] = result_str
         else:
-            content = f"Result: **{result}**"
+            enriched_summary["computed_answer"] = None
 
-        return {
-            "type": "code_result",
-            "content": content,
-            "code": code,
-        }
+        # Step 3: ask LLM to narrate the result in plain English
+        answer = llm.answer_question(question, enriched_summary, self._sample_rows)
+        return {"type": "llm_answer", "content": answer}
 
     def _handle_conversational_question(self, question: str) -> dict[str, Any]:
         """Answer a conceptual / descriptive question using LLM + summary context."""
